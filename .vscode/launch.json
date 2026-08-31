@@ -1,0 +1,63 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "jobseeker: current args",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "jobseeker.cli",
+            "cwd": "${workspaceFolder}",
+            "args": "${input:cliArgs}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "jobseeker: login linkedin",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "jobseeker.cli",
+            "cwd": "${workspaceFolder}",
+            "args": ["login", "linkedin"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "jobseeker: login naukri",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "jobseeker.cli",
+            "cwd": "${workspaceFolder}",
+            "args": ["login", "naukri"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "jobseeker: track list",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "jobseeker.cli",
+            "cwd": "${workspaceFolder}",
+            "args": ["track", "list"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "jobseeker: jobs",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "jobseeker.cli",
+            "cwd": "${workspaceFolder}",
+            "args": ["jobs"],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ],
+    "inputs": [
+        {
+            "id": "cliArgs",
+            "type": "promptString",
+            "description": "Arguments to pass to jobseeker.cli, e.g. 'match some-job-id'",
+            "default": "--help"
+        }
+    ]
+}
