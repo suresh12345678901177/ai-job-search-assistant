@@ -139,6 +139,7 @@ def render_txt(profile: dict, out_path: Path) -> Path:
                 contact.get("phone", ""),
                 contact.get("location", ""),
                 contact.get("linkedin", ""),
+                *contact.get("other_links", []),
             )
             if b
         )
