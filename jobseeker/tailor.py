@@ -1,4 +1,6 @@
-from . import claude_client, retrieval
+import copy
+
+from . import llm_client, retrieval
 
 TRUTHFULNESS_RULE = (
     "Hard rule: you may rephrase, reorder, and emphasize only content that is present "
@@ -11,7 +13,7 @@ def score_match(profile: dict, job: dict) -> dict:
     matches = retrieval.top_resume_matches(profile, job["description"], top_k=12)
     context = retrieval.format_matches_for_prompt(matches)
 
-    return claude_client.call_json(
+    return llm_client.call_json(
         system=(
             "You are a career coach scoring how well a candidate's real background fits a "
             "job description. Be honest and specific - do not inflate the score to be "
@@ -31,37 +33,76 @@ def score_match(profile: dict, job: dict) -> dict:
 
 
 def tailor_resume(profile: dict, job: dict) -> dict:
+    """Tailor the resume for a job. The LLM only supplies a new summary, a
+    reordered skills list, and reordered/rephrased bullets per experience
+    entry - the code (not the model) owns the resume's structure, so a
+    weaker model can't merge/drop/duplicate companies, projects, or dates.
+    """
     matches = retrieval.top_resume_matches(profile, job["description"], top_k=15)
     context = retrieval.format_matches_for_prompt(matches)
 
-    return claude_client.call_json(
+    experience_in = [
+        {"company": e.get("company", ""), "title": e.get("title", ""), "bullets": e.get("bullets", [])}
+        for e in profile.get("experience", [])
+    ]
+    n = len(experience_in)
+
+    result = llm_client.call_json(
         system=(
             "You are an expert resume writer. You tailor a candidate's existing resume to a "
             "specific job by reordering and rewriting for relevance and ATS keyword alignment. "
             + TRUTHFULNESS_RULE
-            + " Keep the exact same JSON schema as the input profile."
         ),
         user=(
             f"JOB TITLE: {job.get('title', '')}\nCOMPANY: {job.get('company', '')}\n\n"
             f"JOB DESCRIPTION:\n{job['description']}\n\n"
             f"MOST RELEVANT CANDIDATE BACKGROUND (retrieved via search, use as emphasis guide):\n{context}\n\n"
-            f"FULL CANDIDATE PROFILE (ground truth, do not add facts beyond this):\n{profile}\n\n"
-            "Produce a tailored version of this exact JSON profile: rewrite the summary to "
-            "target this role, reorder skills to put the most relevant first, reorder each "
-            "experience's bullets to lead with the most relevant ones and lightly rephrase them "
-            "to mirror the job description's language/keywords where truthful. Keep companies, "
-            "titles, dates, and education unchanged. Return the full profile JSON with the same "
-            "top-level keys as the input."
+            f"CANDIDATE SUMMARY: {profile.get('summary', '')}\n"
+            f"CANDIDATE SKILLS: {profile.get('skills', [])}\n"
+            f"CANDIDATE EXPERIENCE (company/title are fixed, only reorder/rephrase each entry's bullets):\n{experience_in}\n\n"
+            "Return ONLY this JSON shape, nothing else:\n"
+            "{\n"
+            '  "summary": "rewritten summary targeting this role",\n'
+            '  "skills": ["skills from CANDIDATE SKILLS only, reordered most-relevant-first"],\n'
+            '  "experience_bullets": [["bullets for experience[0]"], ["bullets for experience[1]"], ...]\n'
+            "}\n"
+            f"experience_bullets MUST have exactly {n} sub-arrays, in the same order as CANDIDATE "
+            "EXPERIENCE above - one per entry, never merged, split, or reordered. Each sub-array "
+            "contains only rephrased/reordered versions of that entry's own original bullets."
         ),
-        max_tokens=4096,
+        max_tokens=3000,
     )
+
+    tailored = copy.deepcopy(profile)
+
+    if result.get("summary"):
+        tailored["summary"] = result["summary"]
+
+    original_skills = profile.get("skills", [])
+    skills_by_lower = {s.lower(): s for s in original_skills}
+    reordered_skills = [
+        skills_by_lower[s.lower()] for s in result.get("skills", []) if isinstance(s, str) and s.lower() in skills_by_lower
+    ]
+    for s in original_skills:
+        if s not in reordered_skills:
+            reordered_skills.append(s)
+    if reordered_skills:
+        tailored["skills"] = reordered_skills
+
+    bullet_lists = result.get("experience_bullets", [])
+    if isinstance(bullet_lists, list) and len(bullet_lists) == n:
+        for exp, new_bullets in zip(tailored.get("experience", []), bullet_lists):
+            if isinstance(new_bullets, list) and new_bullets:
+                exp["bullets"] = new_bullets
+
+    return tailored
 
 
 def write_cover_letter(profile: dict, job: dict) -> str:
     matches = retrieval.top_resume_matches(profile, job["description"], top_k=10)
     context = retrieval.format_matches_for_prompt(matches)
 
-    return claude_client.call(
+    return llm_client.call(
         system=(
             "You write concise, specific, non-generic cover letters (3-4 short paragraphs, "
             "no cliches like 'I am excited to apply'). " + TRUTHFULNESS_RULE
@@ -87,7 +128,7 @@ def draft_answer(question: str, profile: dict, job: dict) -> str:
         f"- Q: {m['question']}\n  A: {m['answer']}" for m in qa_matches
     ) or "(no similar past answers yet)"
 
-    return claude_client.call(
+    return llm_client.call(
         system=(
             "You draft honest, specific answers to job application questions in the "
             "candidate's voice, consistent with how they've answered similar questions before. "

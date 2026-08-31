@@ -1,4 +1,4 @@
-from . import claude_client
+from . import llm_client
 
 POLISH_SYSTEM = (
     "You are a senior resume reviewer. You improve resumes without inventing new facts: "
@@ -10,7 +10,7 @@ POLISH_SYSTEM = (
 
 
 def critique(profile: dict) -> dict:
-    return claude_client.call_json(
+    return llm_client.call_json(
         system=POLISH_SYSTEM,
         user=(
             f"Target roles: {profile.get('target_roles') or '(not specified)'}\n\n"
@@ -24,7 +24,7 @@ def critique(profile: dict) -> dict:
 
 
 def improve(profile: dict) -> dict:
-    return claude_client.call_json(
+    return llm_client.call_json(
         system=POLISH_SYSTEM,
         user=(
             f"Target roles: {profile.get('target_roles') or '(not specified)'}\n\n"

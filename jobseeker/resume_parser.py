@@ -4,7 +4,7 @@ from pathlib import Path
 from docx import Document
 from pypdf import PdfReader
 
-from . import claude_client, config
+from . import config, llm_client
 
 PROFILE_SCHEMA_INSTRUCTIONS = """
 Extract the resume text into this exact JSON schema (use empty strings/lists where
@@ -24,7 +24,8 @@ information is genuinely absent, never invent content that is not in the source 
   "projects": [
     {"name": "", "description": "", "bullets": [], "link": ""}
   ],
-  "certifications": []
+  "certifications": [],
+  "languages_spoken": [{"language": "", "level": ""}]
 }
 
 "target_roles" is not usually stated explicitly in a resume - leave it as an empty list;
@@ -59,7 +60,7 @@ def parse_resume(path: Path) -> dict:
             "No text could be extracted from the resume file (it may be a scanned image)."
         )
 
-    profile = claude_client.call_json(
+    profile = llm_client.call_json(
         system=(
             "You are a precise resume-parsing engine. You convert raw resume text into "
             "structured JSON without adding, embellishing, or inferring facts that are not "

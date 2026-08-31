@@ -112,6 +112,15 @@ def render_docx(profile: dict, out_path: Path) -> Path:
         _add_heading(doc, "Certifications")
         doc.add_paragraph(" • ".join(profile["certifications"]))
 
+    if profile.get("languages_spoken"):
+        _add_heading(doc, "Languages")
+        bits = [
+            f"{lang.get('language', '')} ({lang.get('level', '')})" if lang.get("level") else lang.get("language", "")
+            for lang in profile["languages_spoken"]
+            if lang.get("language")
+        ]
+        doc.add_paragraph(" • ".join(bits))
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(out_path))
     return out_path
@@ -167,7 +176,15 @@ def render_txt(profile: dict, out_path: Path) -> Path:
         lines.append("")
 
     if profile.get("certifications"):
-        lines += ["CERTIFICATIONS", ", ".join(profile["certifications"])]
+        lines += ["CERTIFICATIONS", ", ".join(profile["certifications"]), ""]
+
+    if profile.get("languages_spoken"):
+        bits = [
+            f"{lang.get('language', '')} ({lang.get('level', '')})" if lang.get("level") else lang.get("language", "")
+            for lang in profile["languages_spoken"]
+            if lang.get("language")
+        ]
+        lines += ["LANGUAGES", ", ".join(bits)]
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(lines), encoding="utf-8")

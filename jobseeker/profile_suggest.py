@@ -1,4 +1,4 @@
-from . import claude_client, store
+from . import llm_client, store
 
 
 def suggest(profile: dict, target_role: str | None = None) -> dict:
@@ -9,7 +9,7 @@ def suggest(profile: dict, target_role: str | None = None) -> dict:
 
     role_hint = target_role or ", ".join(profile.get("target_roles") or []) or "(not specified)"
 
-    return claude_client.call_json(
+    return llm_client.call_json(
         system=(
             "You write LinkedIn and Naukri profile copy that is specific and keyword-rich for "
             "recruiter search, grounded only in the candidate's real background - never invent "
