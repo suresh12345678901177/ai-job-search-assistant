@@ -49,6 +49,11 @@ python -m jobseeker.cli ingest-resume "C:\path\to\your_resume.pdf"
 # 2. Optional: general resume critique + improvement pass (no specific job)
 python -m jobseeker.cli polish-resume
 
+# 2b. Anytime you have new info (a new project, a new skill, a new achievement), just tell it:
+python -m jobseeker.cli update-info
+# (paste your note, Ctrl+Z then Enter) - it merges it into profile.json, regenerates
+# resume.docx/.txt, and regenerates the LinkedIn/Naukri suggestions, all automatically.
+
 # 3. Save a job you found by browsing normally
 python -m jobseeker.cli add-job --title "Backend Engineer" --company "Acme" --url "https://..." --file jd.txt
 

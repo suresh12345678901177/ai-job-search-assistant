@@ -6,7 +6,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from . import config, polish, profile_suggest, resume_parser, resume_writer, store, tailor, tracker
+from . import config, polish, profile_suggest, profile_update, resume_parser, resume_writer, store, tailor, tracker
 from .browser import session as browser_session
 
 console = Console()
@@ -43,6 +43,50 @@ def polish_resume():
         improved["_raw_text"] = profile.get("_raw_text", "")
         store.save_profile(improved)
         console.print(f"[green]Updated {config.PROFILE_PATH}[/]")
+
+
+@cli.command("update-info")
+@click.option("--file", "info_file", type=click.Path(exists=True), help="Path to a text file with the new info.")
+def update_info_cmd(info_file: str | None):
+    """Give it any new info in plain English (a new project, skill, achievement) - it figures
+    out where it belongs, merges it truthfully into your profile, and regenerates your resume
+    and LinkedIn/Naukri suggestions automatically."""
+    if info_file:
+        new_info = Path(info_file).read_text(encoding="utf-8")
+    else:
+        console.print("Paste/type the new information, then press Ctrl+Z then Enter (Windows) to finish:")
+        new_info = sys.stdin.read()
+    new_info = new_info.strip()
+    if not new_info:
+        raise SystemExit("No information given.")
+
+    profile = store.load_profile()
+    console.print(f"Processing with the {config.LLM_BACKEND} backend...")
+    plan = profile_update.build_update_plan(profile, new_info)
+    updated_profile, changes = profile_update.apply_update(profile, plan)
+
+    if not changes:
+        console.print("[yellow]Nothing new detected to add - profile left unchanged.[/]")
+        return
+
+    store.save_profile(updated_profile)
+    console.print("[green]Applied changes:[/]")
+    for change in changes:
+        console.print(f"  + {change}")
+
+    master_dir = store.generated_dir("master")
+    resume_writer.render_docx(updated_profile, master_dir / "resume.docx")
+    resume_writer.render_txt(updated_profile, master_dir / "resume.txt")
+    console.print(f"Regenerated master resume in {master_dir}")
+
+    suggestions = profile_suggest.suggest(updated_profile)
+    (config.DATA_DIR / "profile_suggestions.json").write_text(
+        json.dumps(suggestions, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    console.print("Regenerated LinkedIn/Naukri suggestions -> data/profile_suggestions.json")
+    console.print(
+        "\nRun `update-profile --site linkedin` (or naukri) whenever you want to push these into your real profile."
+    )
 
 
 @cli.command("add-job")
