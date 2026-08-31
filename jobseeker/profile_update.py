@@ -17,7 +17,11 @@ UPDATE_SYSTEM = (
     "You extract new resume-relevant facts from a short note a candidate gives you, and turn "
     "them into a structured update. Only include information the candidate actually stated - "
     "never invent skills, projects, employers, metrics, or achievements beyond what's given. "
-    "If something is ambiguous or not clearly stated, leave it out rather than guessing."
+    "If something is ambiguous or not clearly stated, leave it out rather than guessing. "
+    "Critically: if the note is a general instruction, request, opinion, or vague goal rather "
+    "than a specific, concrete new fact (examples of NOT facts: 'make my resume better', "
+    "'help me get hired faster', 'update everything') - it contains nothing to extract, so "
+    "return every field empty/null. Never turn an instruction into a fake project or skill."
 )
 
 
@@ -64,10 +68,13 @@ def apply_update(profile: dict, plan: dict) -> tuple[dict, list[str]]:
     skills = profile.setdefault("skills", [])
     skills_lower = {s.lower() for s in skills}
     for skill in plan.get("new_skills") or []:
-        if isinstance(skill, str) and skill.strip() and skill.lower() not in skills_lower:
-            skills.append(skill.strip())
+        skill = skill.strip() if isinstance(skill, str) else ""
+        # a real skill name is a short noun phrase ("Docker", "Kubernetes") - anything this
+        # long is almost certainly a misfired instruction/sentence, not an actual skill.
+        if skill and len(skill.split()) <= 6 and skill.lower() not in skills_lower:
+            skills.append(skill)
             skills_lower.add(skill.lower())
-            changes.append(f"Added skill: {skill.strip()}")
+            changes.append(f"Added skill: {skill}")
 
     for update in plan.get("experience_updates") or []:
         company = (update.get("company") or "").strip().lower()
@@ -88,12 +95,19 @@ def apply_update(profile: dict, plan: dict) -> tuple[dict, list[str]]:
     project_names_lower = {p.get("name", "").lower() for p in projects}
     for proj in plan.get("new_projects") or []:
         name = (proj.get("name") or "").strip()
-        if name and name.lower() not in project_names_lower:
+        bullets = [b for b in (proj.get("bullets") or []) if isinstance(b, str) and b.strip()]
+        description = (proj.get("description") or "").strip()
+        # a real project name is a short title, not a full sentence/instruction, and a real
+        # project has *some* substance behind it (a bullet or description) - reject anything
+        # that's just a bare, long name with nothing else, which is a sign of a misfired note.
+        looks_like_a_title = name and len(name.split()) <= 12
+        has_substance = bool(bullets or description)
+        if looks_like_a_title and has_substance and name.lower() not in project_names_lower:
             projects.append(
                 {
                     "name": name,
-                    "description": proj.get("description", "") or "",
-                    "bullets": [b for b in (proj.get("bullets") or []) if isinstance(b, str) and b.strip()],
+                    "description": description,
+                    "bullets": bullets,
                     "link": proj.get("link", "") or "",
                 }
             )
