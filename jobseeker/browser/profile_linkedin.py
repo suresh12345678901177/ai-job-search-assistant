@@ -1,10 +1,19 @@
-"""Semi-automated LinkedIn profile updates. Opens the edit panels and fills
-in the suggested text, but never clicks Save - selectors for LinkedIn's
-profile-edit modals shift often, so this is best-effort with a manual
-fallback (the suggested text is always printed too)."""
+"""Semi-automated LinkedIn profile updates. The headline field is reliably
+auto-fillable, so it's filled AND auto-saved - it's your own reversible
+profile text, not something sent to a third party, so the extra click isn't
+worth pausing for. The About section and skills widgets are NOT auto-saved:
+their selectors shift too often for a blind auto-save to be safe (a broken
+partial paste going live on your public profile is the realistic failure
+mode there), so those stay print-and-paste-yourself."""
 from playwright.sync_api import Page
 
 PROFILE_URL = "https://www.linkedin.com/in/me/"
+
+SAVE_BUTTON_SELECTORS = [
+    "button[aria-label='Save']",
+    "div.artdeco-modal__actionbar button:has-text('Save')",
+    "button:has-text('Save')",
+]
 
 
 def _fill_first_visible(page: Page, selectors: list[str], value: str, field_name: str) -> bool:
@@ -18,6 +27,20 @@ def _fill_first_visible(page: Page, selectors: list[str], value: str, field_name
         except Exception:
             continue
     print(f"  could not auto-fill {field_name} - copy it in manually (see printed text below)")
+    return False
+
+
+def _try_click_save(page: Page) -> bool:
+    for sel in SAVE_BUTTON_SELECTORS:
+        try:
+            loc = page.locator(sel).first
+            if loc.count() and loc.is_visible(timeout=2000) and loc.is_enabled():
+                loc.click()
+                print("  clicked Save")
+                return True
+        except Exception:
+            continue
+    print("  could not find a Save button automatically - click Save yourself.")
     return False
 
 
@@ -36,13 +59,17 @@ def update_intro_and_about(page: Page, suggestions: dict) -> None:
         if edit_intro.count() and edit_intro.is_visible(timeout=3000):
             edit_intro.click()
             page.wait_for_timeout(1000)
-            _fill_first_visible(
+            filled = _fill_first_visible(
                 page,
                 ["input#single-line-text-form-component-headline", "input[id*='headline']"],
                 suggestions.get("linkedin_headline", ""),
                 "headline",
             )
-            print("  headline field opened - review it, then click Save yourself. Not auto-saving.")
+            if filled:
+                page.wait_for_timeout(300)
+                _try_click_save(page)
+            else:
+                print("  headline field opened - paste it in and click Save yourself.")
     except Exception as exc:
         print(f"  could not open intro editor automatically: {exc}")
 

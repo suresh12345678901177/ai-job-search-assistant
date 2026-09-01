@@ -1,7 +1,31 @@
-"""Semi-automated Naukri profile updates. Best-effort fill, never saves."""
+"""Semi-automated Naukri profile updates. The headline field is reliably
+auto-fillable, so it's filled AND auto-saved - it's your own reversible
+profile text, not something sent to a third party, so the extra click isn't
+worth pausing for. Key skills is NOT auto-saved: its autocomplete widget
+makes a blind auto-save unsafe, so that stays print-and-paste-yourself."""
 from playwright.sync_api import Page
 
 from .. import config
+
+SAVE_BUTTON_SELECTORS = [
+    "button:has-text('Save')",
+    "button.saveBtn",
+    "div.saveBtn",
+]
+
+
+def _try_click_save(page: Page) -> bool:
+    for sel in SAVE_BUTTON_SELECTORS:
+        try:
+            loc = page.locator(sel).first
+            if loc.count() and loc.is_visible(timeout=2000) and loc.is_enabled():
+                loc.click()
+                print("  clicked Save")
+                return True
+        except Exception:
+            continue
+    print("  could not find a Save button automatically - click Save yourself.")
+    return False
 
 
 def update_headline_and_skills(page: Page, suggestions: dict) -> None:
@@ -21,7 +45,11 @@ def update_headline_and_skills(page: Page, suggestions: dict) -> None:
             textarea = page.locator("textarea").first
             if textarea.count():
                 textarea.fill(suggestions.get("naukri_headline", ""))
-                print("  headline field opened and filled - review it, then click Save yourself.")
+                print("  filled headline")
+                page.wait_for_timeout(300)
+                _try_click_save(page)
+            else:
+                print("  headline editor opened but no text field found - paste it in yourself.")
     except Exception as exc:
         print(f"  could not open headline editor automatically: {exc}")
         print("  paste the suggested headline above manually via 'Resume headline' edit.")
