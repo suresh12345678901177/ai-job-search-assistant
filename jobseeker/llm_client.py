@@ -86,7 +86,9 @@ def _extract_json(text: str) -> Any:
     if fence_match:
         text = fence_match.group(1).strip()
     try:
-        return json.loads(text)
+        # strict=False tolerates raw control characters (e.g. a literal newline)
+        # inside string values - a common local-model mistake instead of \n.
+        return json.loads(text, strict=False)
     except json.JSONDecodeError:
         pass
     start_candidates = [i for i in (text.find("{"), text.find("[")) if i != -1]
@@ -97,4 +99,4 @@ def _extract_json(text: str) -> Any:
     end = text.rfind(end_char)
     if end == -1:
         raise ValueError(f"Could not find JSON in the model's response: {text[:500]}")
-    return json.loads(text[start : end + 1])
+    return json.loads(text[start : end + 1], strict=False)
