@@ -25,7 +25,10 @@ information is genuinely absent, never invent content that is not in the source 
     {"name": "", "description": "", "bullets": [], "link": ""}
   ],
   "certifications": [],
-  "languages_spoken": [{"language": "", "level": ""}]
+  "languages_spoken": [{"language": "", "level": ""}],
+  "publications": [
+    {"title": "", "venue": "", "date": "", "co_authored": false, "details": ""}
+  ]
 }
 
 "target_roles" is not usually stated explicitly in a resume - leave it as an empty list;

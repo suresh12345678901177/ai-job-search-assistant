@@ -108,6 +108,20 @@ def render_docx(profile: dict, out_path: Path) -> Path:
             if edu.get("details"):
                 doc.add_paragraph(edu["details"])
 
+    if profile.get("publications"):
+        _add_heading(doc, "Publications")
+        for pub in profile["publications"]:
+            line = doc.add_paragraph()
+            title_run = line.add_run(pub.get("title", ""))
+            title_run.bold = True
+            if pub.get("co_authored"):
+                line.add_run(" (co-authored)").italic = True
+            meta_bits = [b for b in (pub.get("venue", ""), pub.get("date", "")) if b]
+            if meta_bits:
+                doc.add_paragraph(" | ".join(meta_bits)).runs[0].italic = True
+            if pub.get("details"):
+                doc.add_paragraph(pub["details"])
+
     if profile.get("certifications"):
         _add_heading(doc, "Certifications")
         doc.add_paragraph(" • ".join(profile["certifications"]))
@@ -174,6 +188,17 @@ def render_txt(profile: dict, out_path: Path) -> Path:
         for edu in profile["education"]:
             dates = " - ".join(x for x in (edu.get("start", ""), edu.get("end", "")) if x)
             lines.append(f"{edu.get('degree', '')} — {edu.get('institution', '')} ({dates})")
+        lines.append("")
+
+    if profile.get("publications"):
+        lines.append("PUBLICATIONS")
+        for pub in profile["publications"]:
+            suffix = " (co-authored)" if pub.get("co_authored") else ""
+            meta_bits = [b for b in (pub.get("venue", ""), pub.get("date", "")) if b]
+            meta = f" - {' | '.join(meta_bits)}" if meta_bits else ""
+            lines.append(f"{pub.get('title', '')}{suffix}{meta}")
+            if pub.get("details"):
+                lines.append(f"  {pub['details']}")
         lines.append("")
 
     if profile.get("certifications"):
