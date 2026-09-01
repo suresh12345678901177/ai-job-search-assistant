@@ -6,7 +6,19 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from . import config, polish, profile_suggest, profile_update, resume_parser, resume_writer, store, tailor, tracker
+from . import (
+    config,
+    github_profile,
+    job_alerts,
+    polish,
+    profile_suggest,
+    profile_update,
+    resume_parser,
+    resume_writer,
+    store,
+    tailor,
+    tracker,
+)
 from .browser import session as browser_session
 
 console = Console()
@@ -235,6 +247,53 @@ def update_profile_cmd(site: str, target: str | None):
 
             profile_naukri.update_headline_and_skills(page, suggestions)
         input("\nPress Enter here once you're done reviewing/saving in the browser... ")
+
+
+@cli.command("check-job-alerts")
+@click.option("--loop", type=int, default=0, help="Seconds between checks. Omit to check once and exit.")
+def check_job_alerts_cmd(loop: int):
+    """Check your email's job-alert folder for new postings (LinkedIn's/Naukri's
+    own alert emails - not scraping), save + score any real postings found.
+    Requires EMAIL_ADDRESS and EMAIL_APP_PASSWORD in .env. Safe to run
+    unattended: only reads email and writes to your local job store."""
+    import time
+
+    profile = store.load_profile()
+    while True:
+        console.print(f"Checking '{job_alerts.FOLDER}' folder for new alerts...")
+        found = job_alerts.check_inbox(profile)
+        if found:
+            table = Table()
+            for col in ("job_id", "title", "company", "score"):
+                table.add_column(col)
+            for job in found:
+                table.add_row(job["job_id"], job["title"], job["company"], str(job["score"]))
+            console.print(table)
+            console.print(f"[green]{len(found)} new posting(s) saved.[/] Run `match`/`tailor` on any of them.")
+        else:
+            console.print("No new relevant postings.")
+
+        if loop <= 0:
+            break
+        console.print(f"Sleeping {loop}s before next check...")
+        time.sleep(loop)
+
+
+@cli.command("update-github-profile")
+def update_github_profile_cmd():
+    """Sync your GitHub profile README and bio from profile.json. Safe to run
+    unattended - your own account, via GitHub's own API, fully reversible."""
+    profile = store.load_profile()
+    try:
+        result = github_profile.update_github_profile(profile)
+    except (ValueError, RuntimeError) as exc:
+        raise SystemExit(str(exc))
+
+    if result["created_repo"]:
+        console.print(f"[green]Created profile repo '{result['username']}/{result['username']}'[/]")
+    console.print("[green]README updated[/]" if result["readme_updated"] else "README already up to date")
+    console.print("[green]Bio updated[/]" if result["bio_updated"] else "Bio not updated")
+    console.print(f"https://github.com/{result['username']}")
 
 
 @cli.command("debug-profile")
