@@ -30,14 +30,34 @@ def _fill_first_visible(page: Page, selectors: list[str], value: str, field_name
     return False
 
 
+def _robust_click(locator, timeout: int = 5000) -> bool:
+    """A plain click, falling back to force=True if something (LinkedIn's chat
+    widget, a sticky header, a cookie banner) is intercepting pointer events -
+    a common failure mode on LinkedIn's dynamic layout, not a real disagreement
+    about whether the element is clickable."""
+    try:
+        locator.scroll_into_view_if_needed(timeout=timeout)
+    except Exception:
+        pass
+    try:
+        locator.click(timeout=timeout)
+        return True
+    except Exception:
+        try:
+            locator.click(timeout=timeout, force=True)
+            return True
+        except Exception:
+            return False
+
+
 def _try_click_save(page: Page) -> bool:
     for sel in SAVE_BUTTON_SELECTORS:
         try:
             loc = page.locator(sel).first
             if loc.count() and loc.is_visible(timeout=2000) and loc.is_enabled():
-                loc.click()
-                print("  clicked Save")
-                return True
+                if _robust_click(loc):
+                    print("  clicked Save")
+                    return True
         except Exception:
             continue
     print("  could not find a Save button automatically - click Save yourself.")
@@ -57,19 +77,24 @@ def update_intro_and_about(page: Page, suggestions: dict) -> None:
     try:
         edit_intro = page.locator("button[aria-label*='Edit intro']").first
         if edit_intro.count() and edit_intro.is_visible(timeout=3000):
-            edit_intro.click()
-            page.wait_for_timeout(1000)
-            filled = _fill_first_visible(
-                page,
-                ["input#single-line-text-form-component-headline", "input[id*='headline']"],
-                suggestions.get("linkedin_headline", ""),
-                "headline",
-            )
-            if filled:
-                page.wait_for_timeout(300)
-                _try_click_save(page)
+            if not _robust_click(edit_intro):
+                print("  found the 'Edit intro' button but could not click it - open it manually.")
             else:
-                print("  headline field opened - paste it in and click Save yourself.")
+                page.wait_for_timeout(1000)
+                filled = _fill_first_visible(
+                    page,
+                    ["input#single-line-text-form-component-headline", "input[id*='headline']"],
+                    suggestions.get("linkedin_headline", ""),
+                    "headline",
+                )
+                if filled:
+                    page.wait_for_timeout(300)
+                    _try_click_save(page)
+                else:
+                    print("  headline field opened - paste it in and click Save yourself.")
+        else:
+            print("  could not find the 'Edit intro' button automatically - "
+                  "open your profile's intro pencil icon and paste the headline yourself.")
     except Exception as exc:
         print(f"  could not open intro editor automatically: {exc}")
 
@@ -102,12 +127,15 @@ def set_open_to_work(page: Page, profile: dict) -> None:
             print("  could not find the 'Open to' button automatically - set this up manually via "
                   "your profile > 'Open to' > Finding a new job.")
             return
-        open_to_button.click()
+        if not _robust_click(open_to_button):
+            print("  found the 'Open to' button but something on the page blocked clicking it "
+                  "(likely a chat widget or banner overlay) - set this up manually.")
+            return
         page.wait_for_timeout(800)
 
         finding_job = page.locator("button:has-text('Finding a new job'), div:has-text('Finding a new job')").first
         if finding_job.count() and finding_job.is_visible(timeout=2000):
-            finding_job.click()
+            _robust_click(finding_job)
             page.wait_for_timeout(800)
 
         if target_roles:
@@ -134,7 +162,7 @@ def set_open_to_work(page: Page, profile: dict) -> None:
 
         recruiters_only = page.locator("text=Recruiters only").first
         if recruiters_only.count() and recruiters_only.is_visible(timeout=2000):
-            recruiters_only.click()
+            _robust_click(recruiters_only)
             print("  set visibility to Recruiters only")
         else:
             print("  could not find the visibility option automatically - set it to 'Recruiters only' "
