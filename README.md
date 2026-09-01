@@ -29,6 +29,12 @@ This tool is built **semi-automatic on purpose**:
   outcomes - this speeds up the mechanical parts, it doesn't replace
   judgment about which jobs to actually pursue.
 
+Two things ARE safe to run fully unattended, and do: `check-job-alerts`
+(reads your email's official job-alert folder - the mechanism LinkedIn/Naukri
+themselves provide for this - and only writes to your local job store, no
+scraping, no application sent) and `update-github-profile` (your own GitHub
+account, via GitHub's own API, fully reversible via git history).
+
 ## Setup
 
 ```powershell
@@ -80,6 +86,15 @@ python -m jobseeker.cli update-profile --site linkedin
 # 10. Track everything
 python -m jobseeker.cli track list
 python -m jobseeker.cli track set-status <job_id> interviewing
+
+# 11. Optional: discover new jobs automatically via LinkedIn's/Naukri's own
+# job-alert emails (not scraping - see Risk & ethics). Safe to run unattended.
+python -m jobseeker.cli check-job-alerts
+python -m jobseeker.cli check-job-alerts --loop 3600   # check every hour, forever
+
+# 12. Optional: keep your GitHub profile README + bio in sync with profile.json.
+# Uses GitHub's own API/CLI (unlike LinkedIn/Naukri, this is fully safe to automate).
+python -m jobseeker.cli update-github-profile
 ```
 
 Run `python -m jobseeker.cli --help` (or `<command> --help`) any time.
