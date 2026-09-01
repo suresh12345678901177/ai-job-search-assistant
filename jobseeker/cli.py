@@ -237,6 +237,23 @@ def update_profile_cmd(site: str, target: str | None):
         input("\nPress Enter here once you're done reviewing/saving in the browser... ")
 
 
+@cli.command("debug-profile")
+@click.option("--site", type=click.Choice(["linkedin", "naukri"]), required=True)
+def debug_profile_cmd(site: str):
+    """Screenshot your real profile page and dump button labels - use this when
+    update-profile stops finding a field/button after a site redesign, to read
+    off the real selectors instead of guessing."""
+    with browser_session.open_session(site) as page:
+        from .browser import diagnostics
+
+        if site == "linkedin":
+            screenshot, buttons = diagnostics.dump_linkedin_profile(page)
+        else:
+            screenshot, buttons = diagnostics.dump_naukri_profile(page)
+        console.print(f"[green]Screenshot:[/] {screenshot}")
+        console.print(f"[green]Button dump:[/] {buttons}")
+
+
 @cli.group("track")
 def track_group():
     """View or update your application tracker."""
