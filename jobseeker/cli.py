@@ -153,6 +153,7 @@ def tailor_cmd(job_id: str):
     out_dir = store.generated_dir(job_id)
     resume_writer.render_docx(tailored_profile, out_dir / "resume.docx")
     resume_writer.render_txt(tailored_profile, out_dir / "resume.txt")
+    resume_writer.render_pdf(tailored_profile, out_dir / "resume.pdf")
     (out_dir / "cover_letter.txt").write_text(cover_letter, encoding="utf-8")
     (out_dir / "tailored_profile.json").write_text(
         json.dumps(tailored_profile, indent=2, ensure_ascii=False), encoding="utf-8"

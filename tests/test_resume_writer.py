@@ -1,6 +1,7 @@
 from docx import Document
+from pypdf import PdfReader
 
-from jobseeker.resume_writer import render_docx, render_txt
+from jobseeker.resume_writer import render_docx, render_pdf, render_txt
 
 SAMPLE_PROFILE = {
     "contact": {"name": "Jane Doe", "email": "jane@example.com", "phone": "555-1234"},
@@ -39,3 +40,15 @@ def test_render_txt_contains_expected_text(tmp_path):
     assert "Jane Doe" in text
     assert "SUMMARY" in text
     assert "Optimized SQL queries" in text
+
+
+def test_render_pdf_contains_expected_text(tmp_path):
+    out_path = render_pdf(SAMPLE_PROFILE, tmp_path / "resume.pdf")
+    assert out_path.exists()
+
+    reader = PdfReader(str(out_path))
+    full_text = "\n".join(page.extract_text() or "" for page in reader.pages)
+    assert "Jane Doe" in full_text
+    assert "Built a Python API" in full_text
+    assert "Backend Engineer" in full_text
+    assert "State University" in full_text

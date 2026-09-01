@@ -215,3 +215,131 @@ def render_txt(profile: dict, out_path: Path) -> Path:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(lines), encoding="utf-8")
     return out_path
+
+
+def render_pdf(profile: dict, out_path: Path) -> Path:
+    from xml.sax.saxutils import escape
+
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import inch
+    from reportlab.platypus import HRFlowable, ListFlowable, ListItem, Paragraph, SimpleDocTemplate
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    doc = SimpleDocTemplate(
+        str(out_path),
+        pagesize=letter,
+        topMargin=0.5 * inch,
+        bottomMargin=0.5 * inch,
+        leftMargin=0.65 * inch,
+        rightMargin=0.65 * inch,
+    )
+
+    base = getSampleStyleSheet()["Normal"]
+    name_style = ParagraphStyle("Name", parent=base, fontName="Helvetica-Bold", fontSize=18, alignment=TA_CENTER, spaceAfter=2)
+    contact_style = ParagraphStyle("Contact", parent=base, fontSize=9.5, alignment=TA_CENTER, spaceAfter=8, textColor=colors.HexColor("#333333"))
+    heading_style = ParagraphStyle("Heading", parent=base, fontName="Helvetica-Bold", fontSize=11, spaceBefore=10, spaceAfter=3, textColor=colors.HexColor("#1A1A1A"))
+    body_style = ParagraphStyle("Body", parent=base, fontSize=10, leading=13, spaceAfter=4)
+    bullet_style = ParagraphStyle("Bullet", parent=body_style, spaceAfter=2)
+
+    story = []
+
+    def esc(value) -> str:
+        return escape(str(value or ""))
+
+    def add_heading(text: str) -> None:
+        story.append(Paragraph(esc(text).upper(), heading_style))
+        story.append(HRFlowable(width="100%", thickness=0.6, color=colors.HexColor("#888888"), spaceAfter=4))
+
+    def add_bullets(bullets: list[str]) -> None:
+        items = [ListItem(Paragraph(esc(b), bullet_style), leftIndent=0) for b in bullets]
+        story.append(ListFlowable(items, bulletType="bullet", start="•", leftIndent=14, bulletFontSize=9))
+
+    contact = profile.get("contact", {})
+    story.append(Paragraph(esc(contact.get("name", "").strip() or "Your Name"), name_style))
+
+    contact_bits = [
+        contact.get("email", ""),
+        contact.get("phone", ""),
+        contact.get("location", ""),
+        contact.get("linkedin", ""),
+        *contact.get("other_links", []),
+    ]
+    contact_line = " | ".join(b for b in contact_bits if b)
+    if contact_line:
+        story.append(Paragraph(esc(contact_line), contact_style))
+
+    if profile.get("summary"):
+        add_heading("Summary")
+        story.append(Paragraph(esc(profile["summary"]), body_style))
+
+    if profile.get("skills"):
+        add_heading("Skills")
+        story.append(Paragraph(esc(" • ".join(profile["skills"])), body_style))
+
+    if profile.get("experience"):
+        add_heading("Experience")
+        for exp in profile["experience"]:
+            header = f"<b>{esc(exp.get('title', ''))} — {esc(exp.get('company', ''))}</b>"
+            dates = " – ".join(x for x in (exp.get("start", ""), exp.get("end", "")) if x)
+            meta_bits = [b for b in (exp.get("location", ""), dates) if b]
+            if meta_bits:
+                header += f"&nbsp;&nbsp;&nbsp;&nbsp;<i>{esc(' | '.join(meta_bits))}</i>"
+            story.append(Paragraph(header, body_style))
+            if exp.get("bullets"):
+                add_bullets(exp["bullets"])
+
+    if profile.get("projects"):
+        add_heading("Projects")
+        for proj in profile["projects"]:
+            header = f"<b>{esc(proj.get('name', ''))}</b>"
+            if proj.get("link"):
+                header += f"&nbsp;&nbsp;<i>({esc(proj['link'])})</i>"
+            story.append(Paragraph(header, body_style))
+            if proj.get("description"):
+                story.append(Paragraph(esc(proj["description"]), body_style))
+            if proj.get("bullets"):
+                add_bullets(proj["bullets"])
+
+    if profile.get("education"):
+        add_heading("Education")
+        for edu in profile["education"]:
+            header = f"<b>{esc(edu.get('degree', ''))} — {esc(edu.get('institution', ''))}</b>"
+            dates = " – ".join(x for x in (edu.get("start", ""), edu.get("end", "")) if x)
+            meta_bits = [b for b in (edu.get("location", ""), dates) if b]
+            if meta_bits:
+                header += f"&nbsp;&nbsp;&nbsp;&nbsp;<i>{esc(' | '.join(meta_bits))}</i>"
+            story.append(Paragraph(header, body_style))
+            if edu.get("details"):
+                story.append(Paragraph(esc(edu["details"]), body_style))
+
+    if profile.get("publications"):
+        add_heading("Publications")
+        for pub in profile["publications"]:
+            header = f"<b>{esc(pub.get('title', ''))}</b>"
+            if pub.get("co_authored"):
+                header += " <i>(co-authored)</i>"
+            story.append(Paragraph(header, body_style))
+            meta_bits = [b for b in (pub.get("venue", ""), pub.get("date", "")) if b]
+            if meta_bits:
+                story.append(Paragraph(f"<i>{esc(' | '.join(meta_bits))}</i>", body_style))
+            if pub.get("details"):
+                story.append(Paragraph(esc(pub["details"]), body_style))
+
+    if profile.get("certifications"):
+        add_heading("Certifications")
+        story.append(Paragraph(esc(" • ".join(profile["certifications"])), body_style))
+
+    if profile.get("languages_spoken"):
+        add_heading("Languages")
+        bits = [
+            f"{lang.get('language', '')} ({lang.get('level', '')})" if lang.get("level") else lang.get("language", "")
+            for lang in profile["languages_spoken"]
+            if lang.get("language")
+        ]
+        story.append(Paragraph(esc(" • ".join(bits)), body_style))
+
+    doc.build(story)
+    return out_path
