@@ -77,3 +77,73 @@ def update_intro_and_about(page: Page, suggestions: dict) -> None:
         "\nFor the About section, click 'Add profile section' / the About pencil icon and paste "
         "the suggested text above - that modal's structure changes too often to fill reliably."
     )
+
+
+def set_open_to_work(page: Page, profile: dict) -> None:
+    """Sets LinkedIn's 'Open to Work' job preferences, visible to recruiters
+    only (not broadcast to your network/employer) - a discreet, reversible,
+    own-account setting, not a public post. Job title/location fields are
+    autocomplete widgets that are inherently harder to automate reliably
+    than a plain text input, so this degrades to manual instructions on any
+    step it can't complete confidently rather than guessing."""
+    page.goto(PROFILE_URL)
+    page.wait_for_load_state("domcontentloaded")
+
+    target_roles = profile.get("target_roles") or []
+    location = profile.get("contact", {}).get("location", "")
+    print("\nSetting Open to Work for:")
+    print(f"  Job titles: {', '.join(target_roles) or '(none set in your profile)'}")
+    print(f"  Location: {location or '(none set in your profile)'}")
+    print("  Visibility: Recruiters only (not your network/employer)")
+
+    try:
+        open_to_button = page.locator("button:has-text('Open to')").first
+        if not (open_to_button.count() and open_to_button.is_visible(timeout=3000)):
+            print("  could not find the 'Open to' button automatically - set this up manually via "
+                  "your profile > 'Open to' > Finding a new job.")
+            return
+        open_to_button.click()
+        page.wait_for_timeout(800)
+
+        finding_job = page.locator("button:has-text('Finding a new job'), div:has-text('Finding a new job')").first
+        if finding_job.count() and finding_job.is_visible(timeout=2000):
+            finding_job.click()
+            page.wait_for_timeout(800)
+
+        if target_roles:
+            title_input = page.locator("input[id*='TITLE'], input[placeholder*='title' i]").first
+            if title_input.count() and title_input.is_visible(timeout=2000):
+                for role in target_roles[:3]:
+                    title_input.fill(role)
+                    page.wait_for_timeout(600)
+                    page.keyboard.press("Enter")
+                    page.wait_for_timeout(400)
+                print("  filled job titles")
+            else:
+                print("  could not find the job title field automatically - add titles manually.")
+
+        if location:
+            location_input = page.locator("input[id*='LOCATION'], input[placeholder*='location' i]").first
+            if location_input.count() and location_input.is_visible(timeout=2000):
+                location_input.fill(location)
+                page.wait_for_timeout(600)
+                page.keyboard.press("Enter")
+                print("  filled location")
+            else:
+                print("  could not find the location field automatically - add location manually.")
+
+        recruiters_only = page.locator("text=Recruiters only").first
+        if recruiters_only.count() and recruiters_only.is_visible(timeout=2000):
+            recruiters_only.click()
+            print("  set visibility to Recruiters only")
+        else:
+            print("  could not find the visibility option automatically - set it to 'Recruiters only' "
+                  "yourself if that's what you want (default may be broader).")
+
+        if _try_click_save(page):
+            print("  Open to Work saved")
+        else:
+            print("  review the Open to Work panel and click Save/Add yourself.")
+    except Exception as exc:
+        print(f"  could not complete Open to Work automatically ({exc}) - "
+              "set it up manually via your profile > 'Open to' > Finding a new job.")

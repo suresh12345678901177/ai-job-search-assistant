@@ -229,6 +229,7 @@ def update_profile_cmd(site: str, target: str | None):
             from .browser import profile_linkedin
 
             profile_linkedin.update_intro_and_about(page, suggestions)
+            profile_linkedin.set_open_to_work(page, profile)
         else:
             from .browser import profile_naukri
 
