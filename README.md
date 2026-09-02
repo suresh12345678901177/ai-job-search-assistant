@@ -95,6 +95,12 @@ python -m jobseeker.cli check-job-alerts --loop 3600   # check every hour, forev
 # 12. Optional: keep your GitHub profile README + bio in sync with profile.json.
 # Uses GitHub's own API/CLI (unlike LinkedIn/Naukri, this is fully safe to automate).
 python -m jobseeker.cli update-github-profile
+
+# 13. Optional: a local web dashboard over everything above - profile view, a
+# job feed (RemoteOK/Arbeitnow + your email alerts, real apply links), one-click
+# tailoring, AI match scoring, and the application tracker as a kanban board.
+python -m jobseeker.cli webapp
+# -> open http://127.0.0.1:5000 - runs on localhost only, nothing is exposed.
 ```
 
 Run `python -m jobseeker.cli --help` (or `<command> --help`) any time.
