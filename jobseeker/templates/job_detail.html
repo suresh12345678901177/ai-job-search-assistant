@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}{{ job.title }} - Job Search Assistant{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ job.title }}</h1>
+    <div class="sub">{{ job.company }}{% if job.location %} · {{ job.location }}{% endif %}
+      {% if job.url %} · <a href="{{ job.url }}" target="_blank" rel="noopener" style="color:var(--accent);">original posting</a>{% endif %}
+    </div>
+  </div>
+  <span class="badge status-{{ job.status }}">{{ job.status }}</span>
+</div>
+
+<div class="card">
+  <h2>Actions</h2>
+  <div class="section-actions">
+    <form class="inline" method="post" action="{{ url_for('job_tailor', job_id=job.id) }}">
+      <button class="btn" type="submit">Tailor resume + cover letter</button>
+    </form>
+    <form class="inline" method="post" action="{{ url_for('job_score', job_id=job.id) }}">
+      <button class="btn secondary" type="submit">Score with AI</button>
+    </form>
+
+    {% if is_linkedin or is_naukri %}
+    <form class="inline" method="post" action="{{ url_for('job_apply', job_id=job.id) }}">
+      <input type="hidden" name="site" value="{{ 'linkedin' if is_linkedin else 'naukri' }}">
+      <button class="btn secondary" type="submit">Semi-auto apply ({{ 'LinkedIn' if is_linkedin else 'Naukri' }})</button>
+    </form>
+    {% elif job.url %}
+    <a class="btn secondary" href="{{ job.url }}" target="_blank" rel="noopener">Open posting to apply</a>
+    {% endif %}
+
+    <form class="inline status-form" method="post" action="{{ url_for('job_status', job_id=job.id) }}">
+      <select name="status" onchange="this.form.submit()">
+        {% for s in statuses %}
+        <option value="{{ s }}" {{ 'selected' if s == job.status }}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </form>
+  </div>
+  {% if is_linkedin or is_naukri %}
+  <p style="font-size:12.5px; color:var(--muted); margin-top:10px;">
+    Semi-auto apply opens a real browser window, fills in what it confidently can, and stops
+    before the final Submit - you review and click it yourself there.
+  </p>
+  {% endif %}
+  <p style="font-size:12.5px; color:var(--muted); margin-top:10px;">
+    "Tailor" and "Score with AI" call the LLM and can take anywhere from a few seconds (Claude
+    API) up to 2-3 minutes (local Ollama) - the page will just look like it's loading, it isn't stuck.
+  </p>
+</div>
+
+{% if job.match %}
+<div class="card">
+  <h2>AI match score: {{ job.match.score }}/100</h2>
+  {% if job.match.strengths %}
+  <p style="font-size:13px; font-weight:600; margin-bottom:4px;">Strengths</p>
+  <ul class="bullet-list">{% for s in job.match.strengths %}<li>{{ s }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if job.match.gaps %}
+  <p style="font-size:13px; font-weight:600; margin-bottom:4px;">Gaps</p>
+  <ul class="bullet-list">{% for g in job.match.gaps %}<li>{{ g }}</li>{% endfor %}</ul>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Why this matched (retrieved from your resume)</h2>
+  {% if match_bullets %}
+  <ul class="bullet-list">
+    {% for m in match_bullets %}
+    <li>{{ m.text }} <span class="src">— {{ m.tag }}</span></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty-state">No strong keyword overlap found with your resume yet.</div>
+  {% endif %}
+</div>
+
+{% if generated.resume_docx or generated.resume_pdf or generated.cover_letter %}
+<div class="card">
+  <h2>Generated materials</h2>
+  <div class="section-actions">
+    {% if generated.resume_docx %}<a class="btn outline small" href="{{ url_for('download', job_id=job.id, filename='resume.docx') }}">Download resume.docx</a>{% endif %}
+    {% if generated.resume_pdf %}<a class="btn outline small" href="{{ url_for('download', job_id=job.id, filename='resume.pdf') }}">Download resume.pdf</a>{% endif %}
+    {% if generated.cover_letter %}<a class="btn outline small" href="{{ url_for('download', job_id=job.id, filename='cover_letter.txt') }}">Download cover letter</a>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Job description</h2>
+  <p style="font-size:13.5px; line-height:1.6; white-space:pre-wrap;">{{ job.description }}</p>
+</div>
+{% endblock %}

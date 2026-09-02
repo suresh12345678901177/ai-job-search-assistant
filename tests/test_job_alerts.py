@@ -1,4 +1,10 @@
-from jobseeker.job_alerts import _is_relevant, _relevance_keywords, _split_candidate_postings
+from jobseeker.job_alerts import (
+    _extract_job_url,
+    _html_to_text_with_links,
+    _is_relevant,
+    _relevance_keywords,
+    _split_candidate_postings,
+)
 
 SAMPLE_PROFILE = {
     "target_roles": ["Machine Learning Engineer", "NLP Engineer"],
@@ -31,3 +37,28 @@ def test_split_candidate_postings_filters_short_chunks():
     chunks = _split_candidate_postings(body)
     assert len(chunks) == 1
     assert len(chunks[0]) > 200
+
+
+def test_extract_job_url_prefers_linkedin_over_tracking_link():
+    chunk = (
+        "Machine Learning Engineer at Acme\n"
+        "View job (https://www.linkedin.com/jobs/view/12345)\n"
+        "Unsubscribe (https://email.linkedin.com/unsub?x=1)"
+    )
+    assert _extract_job_url(chunk) == "https://www.linkedin.com/jobs/view/12345"
+
+
+def test_extract_job_url_falls_back_to_first_url():
+    chunk = "Backend Engineer at Acme\nApply (https://boards.greenhouse.io/acme/jobs/1)"
+    assert _extract_job_url(chunk) == "https://boards.greenhouse.io/acme/jobs/1"
+
+
+def test_extract_job_url_empty_when_no_links():
+    assert _extract_job_url("just some text with no links") == ""
+
+
+def test_html_to_text_with_links_inlines_href_next_to_text():
+    html = '<p>New job: <a href="https://www.naukri.com/job/123">View job</a></p>'
+    text = _html_to_text_with_links(html)
+    assert "https://www.naukri.com/job/123" in text
+    assert "View job" in text

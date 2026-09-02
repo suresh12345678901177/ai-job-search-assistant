@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Tracker - Job Search Assistant{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Application tracker</h1>
+    <div class="sub">Pipeline view across every saved job.</div>
+  </div>
+</div>
+
+<div class="kanban">
+  {% for status in statuses %}
+  <div class="kanban-col">
+    <h3>{{ status }} ({{ board[status] | length }})</h3>
+    {% for row in board[status] %}
+    <div class="kanban-card">
+      <a href="{{ url_for('job_detail', job_id=row.job_id) }}">{{ row.title }}</a>
+      <div style="color:var(--muted); margin-top:2px;">{{ row.company }}</div>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:8px 0; font-size:12px;">—</div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

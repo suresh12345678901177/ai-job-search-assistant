@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Jobs - Job Search Assistant{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Matched jobs</h1>
+    <div class="sub">Pulled from RemoteOK / Arbeitnow (filtered to your target roles &amp; skills) plus real LinkedIn/Naukri postings from your email job alerts.</div>
+  </div>
+  <div class="section-actions">
+    <form class="inline" method="post" action="{{ url_for('jobs_score_batch') }}">
+      <button class="btn secondary" type="submit">Score top matches with AI</button>
+    </form>
+    <form class="inline" method="post" action="{{ url_for('jobs_fetch') }}">
+      <button class="btn" type="submit">Fetch new jobs</button>
+    </form>
+  </div>
+</div>
+
+<p style="font-size:12.5px; color:var(--muted); margin-top:-10px; margin-bottom:18px;">
+  The number badge on each job is the real AI-scored match (0-100) once scored - shown in blue.
+  Until then it falls back to a fast keyword-overlap estimate - shown in grey - which is just a
+  cheap pre-filter for sorting, not the real model.
+</p>
+
+<form method="get" class="toolbar" style="margin-bottom:18px;">
+  <input type="text" name="q" placeholder="Search title or company..." value="{{ q }}">
+  <button class="btn outline small" type="submit">Search</button>
+</form>
+
+<div class="job-list">
+  {% for job in jobs %}
+  <div class="job-card">
+    <a href="{{ url_for('job_detail', job_id=job.id) }}" style="text-decoration:none; color:inherit; flex:1;">
+      <div class="info">
+        <h3>{{ job.title }}</h3>
+        <div class="meta">{{ job.company }}{% if job.location %} · {{ job.location }}{% endif %}{% if job.source %} · {{ job.source }}{% endif %}</div>
+      </div>
+    </a>
+    <div class="right">
+      <span class="badge status-{{ job.status }}">{{ job.status }}</span>
+      {% if job.ai_score is not none %}
+      <div class="match-ring {{ 'match-high' if job.ai_score >= 60 else ('match-mid' if job.ai_score >= 30 else 'match-low') }}" title="Real AI-scored match">{{ job.ai_score }}</div>
+      {% else %}
+      <div class="match-ring" style="background:#b7c0c6;" title="Keyword pre-filter estimate, not the AI model">{{ job.keyword_score }}%</div>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state">No jobs yet - click "Fetch new jobs" or run `check-job-alerts` / `add-job`.</div>
+  {% endfor %}
+</div>
+{% endblock %}

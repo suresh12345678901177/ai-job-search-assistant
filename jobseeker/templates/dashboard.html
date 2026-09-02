@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Job Search Assistant{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Welcome, {{ profile.contact.name }}</h1>
+    <div class="sub">{{ profile.target_roles | join(' · ') }}</div>
+  </div>
+  <div class="section-actions">
+    <form class="inline" method="post" action="{{ url_for('sync_github') }}">
+      <button class="btn secondary small" type="submit">Sync GitHub profile</button>
+    </form>
+    <form class="inline" method="post" action="{{ url_for('sync_email_alerts') }}">
+      <button class="btn secondary small" type="submit">Check email job alerts</button>
+    </form>
+  </div>
+</div>
+
+<div class="stat-grid">
+  <div class="stat"><div class="num">{{ stats.total_jobs }}</div><div class="label">Jobs saved</div></div>
+  <div class="stat"><div class="num">{{ stats.tailored }}</div><div class="label">Resumes tailored</div></div>
+  <div class="stat"><div class="num">{{ stats.applied }}</div><div class="label">Applications sent</div></div>
+  <div class="stat"><div class="num">{{ stats.interviewing }}</div><div class="label">Interviewing+</div></div>
+  <div class="stat"><div class="num">{{ stats.offers }}</div><div class="label">Offers</div></div>
+</div>
+
+<div class="card" style="margin-top:20px;">
+  <h2>How the matching works</h2>
+  <p style="font-size:13.5px; color:var(--muted); line-height:1.6;">
+    Jobs come from two real sources: free job-search APIs (RemoteOK/Arbeitnow) and your own
+    LinkedIn/Naukri job-alert emails (via "Check email job alerts" above) - both with real apply
+    links back to the original posting. Every job is first ranked by a fast TF-IDF keyword estimate
+    (grey badge on the Jobs page), and the actual AI model - Claude/Ollama, the same one that writes
+    your tailored resumes - can score any job for real (blue badge) via "Score with AI", grounded in
+    the same resume bullets it retrieved (shown on each job's own page). Tailoring and cover letters
+    are grounded in that same retrieval, so the AI reorders/rewrites your real background instead of
+    inventing anything new.
+  </p>
+</div>
+
+<div class="card">
+  <h2>Recent activity</h2>
+  {% if recent %}
+  <table style="width:100%; border-collapse: collapse; font-size:13.5px;">
+    <thead>
+      <tr style="text-align:left; color:var(--muted); font-size:12px;">
+        <th style="padding:6px 0;">Job</th><th>Company</th><th>Status</th><th>Updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in recent %}
+      <tr style="border-top:1px solid var(--border);">
+        <td style="padding:8px 0;"><a href="{{ url_for('job_detail', job_id=row.job_id) }}" style="color:var(--accent); text-decoration:none; font-weight:600;">{{ row.title }}</a></td>
+        <td>{{ row.company }}</td>
+        <td><span class="badge status-{{ row.status }}">{{ row.status }}</span></td>
+        <td style="color:var(--muted);">{{ row.updated_at[:10] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">No applications tracked yet - fetch some jobs to get started.</div>
+  {% endif %}
+</div>
+{% endblock %}

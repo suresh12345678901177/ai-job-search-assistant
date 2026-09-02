@@ -337,5 +337,16 @@ def track_set_status(job_id: str, status: str):
     console.print(f"[green]{job_id} -> {status}[/]")
 
 
+@cli.command("webapp")
+@click.option("--port", default=5000, help="Port to serve the dashboard on.")
+def webapp_cmd(port: int):
+    """Launch the local web dashboard (profile, matched jobs, tailoring, tracker)."""
+    from . import webapp
+
+    console.print(f"[green]Dashboard running at http://127.0.0.1:{port} - open it in your browser.[/]")
+    console.print("[dim]Press Ctrl+C here to stop it.[/]")
+    webapp.run(port=port)
+
+
 if __name__ == "__main__":
     cli()

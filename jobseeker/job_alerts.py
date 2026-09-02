@@ -43,17 +43,47 @@ def _decode_str(value) -> str:
     return decoded
 
 
+_HREF_RE = re.compile(r'<a\b[^>]*href=["\']([^"\']+)["\'][^>]*>(.*?)</a>', re.IGNORECASE | re.DOTALL)
+_URL_RE = re.compile(r'https?://[^\s()<>\[\]"\']+')
+
+
+def _html_to_text_with_links(html: str) -> str:
+    """Inlines each link's URL next to its text (e.g. 'View job (https://...)')
+    before stripping tags, so a real apply URL survives into the plain text
+    used for chunking/extraction below - the plain-text alternative most
+    alert emails send often omits links entirely."""
+    def _replace(m):
+        url, text = m.group(1), re.sub("<[^<]+?>", " ", m.group(2)).strip()
+        return f"{text} ({url})" if text else f"({url})"
+
+    return re.sub("<[^<]+?>", " ", _HREF_RE.sub(_replace, html))
+
+
 def _get_body(msg) -> str:
     if msg.is_multipart():
+        html_part = text_part = None
         for part in msg.walk():
-            if part.get_content_type() == "text/plain":
-                return part.get_payload(decode=True).decode(errors="ignore")
-        for part in msg.walk():
-            if part.get_content_type() == "text/html":
-                html = part.get_payload(decode=True).decode(errors="ignore")
-                return re.sub("<[^<]+?>", " ", html)
-        return ""
-    return msg.get_payload(decode=True).decode(errors="ignore")
+            ctype = part.get_content_type()
+            if ctype == "text/html" and html_part is None:
+                html_part = part.get_payload(decode=True).decode(errors="ignore")
+            elif ctype == "text/plain" and text_part is None:
+                text_part = part.get_payload(decode=True).decode(errors="ignore")
+        if html_part:
+            return _html_to_text_with_links(html_part)
+        return text_part or ""
+    payload = msg.get_payload(decode=True)
+    return payload.decode(errors="ignore") if payload else ""
+
+
+def _extract_job_url(chunk: str) -> str:
+    """Picks the real apply/view-job URL out of an email chunk - preferring an
+    actual LinkedIn/Naukri job link over any tracking/unsubscribe/social link
+    that might also appear in the same block."""
+    urls = [u.rstrip(").,;'\"") for u in _URL_RE.findall(chunk)]
+    for url in urls:
+        if "linkedin.com/jobs" in url or "naukri.com" in url:
+            return url
+    return urls[0] if urls else ""
 
 
 def _relevance_keywords(profile: dict) -> list[str]:
@@ -156,7 +186,7 @@ def check_inbox(profile: dict) -> list[dict]:
                     {
                         "title": posting["title"],
                         "company": posting["company"] or "(unknown - from email alert)",
-                        "url": "",
+                        "url": _extract_job_url(chunk),
                         "description": posting["description"],
                         "source": "email_alert",
                     }

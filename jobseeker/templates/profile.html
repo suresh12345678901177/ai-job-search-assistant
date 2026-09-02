@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Profile - Job Search Assistant{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ profile.contact.name }}</h1>
+    <div class="sub">
+      {{ profile.contact.email }} · {{ profile.contact.phone }} · {{ profile.contact.location }}
+      {% if profile.contact.linkedin %} · <a href="{{ profile.contact.linkedin }}" target="_blank" style="color:var(--accent);">LinkedIn</a>{% endif %}
+      {% for link in profile.contact.other_links %} · <a href="{{ link }}" target="_blank" style="color:var(--accent);">GitHub</a>{% endfor %}
+    </div>
+  </div>
+  <div class="section-actions">
+    <a class="btn secondary small" href="{{ url_for('download', job_id='master', filename='resume.docx') }}">Download resume.docx</a>
+    <a class="btn secondary small" href="{{ url_for('download', job_id='master', filename='resume.pdf') }}">Download resume.pdf</a>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Summary</h2>
+  <p style="font-size:13.5px; line-height:1.6;">{{ profile.summary }}</p>
+</div>
+
+<div class="card">
+  <h2>Skills</h2>
+  <div class="tag-list">{% for s in profile.skills %}<span class="tag">{{ s }}</span>{% endfor %}</div>
+</div>
+
+<div class="card">
+  <h2>Experience</h2>
+  {% for e in profile.experience %}
+  <div class="exp-item">
+    <h3>{{ e.title }} — {{ e.company }}</h3>
+    <div class="meta">{{ e.location }} · {{ e.start }} - {{ e.end }}</div>
+    <ul class="bullet-list">{% for b in e.bullets %}<li>{{ b }}</li>{% endfor %}</ul>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>Projects</h2>
+  {% for p in profile.projects %}
+  <div class="proj-item">
+    <h3>{{ p.name }}</h3>
+    {% if p.link %}<a href="{{ p.link }}" target="_blank">{{ p.link }}</a>{% endif %}
+    <ul class="bullet-list">{% for b in p.bullets %}<li>{{ b }}</li>{% endfor %}</ul>
+  </div>
+  {% endfor %}
+</div>
+
+{% if profile.publications %}
+<div class="card">
+  <h2>Publications</h2>
+  {% for pub in profile.publications %}
+  <div class="proj-item">
+    <h3>{{ pub.title }}{% if pub.co_authored %} (co-authored){% endif %}</h3>
+    <div class="meta">{{ pub.venue }} · {{ pub.date }}</div>
+    <p style="font-size:13px; color:var(--muted);">{{ pub.details }}</p>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Education</h2>
+  {% for ed in profile.education %}
+  <div class="exp-item">
+    <h3>{{ ed.degree }}</h3>
+    <div class="meta">{{ ed.institution }} · {{ ed.end }} · {{ ed.details }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h2>Certifications &amp; Languages</h2>
+  <div class="tag-list">{% for c in profile.certifications %}<span class="tag">{{ c }}</span>{% endfor %}</div>
+  <div class="tag-list" style="margin-top:10px;">
+    {% for l in profile.languages_spoken %}<span class="tag">{{ l.language }}{% if l.level %} ({{ l.level }}){% endif %}</span>{% endfor %}
+  </div>
+</div>
+{% endblock %}
